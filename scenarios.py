@@ -224,6 +224,12 @@ def start_scenario(scenario_id):
     global active_scenario_id, scenario_start_time, scenario_metrics
     
     try:
+        # Validate scenario_id is an integer
+        try:
+            scenario_id = int(scenario_id)
+        except (ValueError, TypeError):
+            return {"error": f"Invalid scenario_id: {scenario_id}. Must be an integer value."}
+        
         # Clear any active scenario
         if active_scenario_id:
             clear_scenario()
@@ -238,23 +244,36 @@ def start_scenario(scenario_id):
         scenario_start_time = datetime.now()
         scenario_metrics = {}
         
-        # Parse configuration
-        config = json.loads(scenario.config)
+        # Parse configuration - with error handling for JSON parsing
+        try:
+            config = json.loads(scenario.config) if scenario.config else {}
+        except json.JSONDecodeError:
+            logger.error(f"Invalid JSON in scenario configuration for scenario ID {scenario_id}")
+            return {"error": f"Invalid configuration data for scenario ID {scenario_id}"}
         
-        # Configure simulation
+        # Configure simulation with default values if missing
         simulation_speed = config.get("simulation_speed", 1.0)
-        set_simulation_state(running=True, speed=simulation_speed)
+        try:
+            set_simulation_state(running=True, speed=float(simulation_speed))
+        except (ValueError, TypeError):
+            # Default to 1.0 if simulation_speed is not a valid float
+            set_simulation_state(running=True, speed=1.0)
         
         # Set active scenario in simulation
         set_active_scenario(config)
         
         # Create performance metric entry
-        metric = PerformanceMetric(
-            scenario_id=scenario_id,
-            start_time=scenario_start_time
-        )
-        db.session.add(metric)
-        db.session.commit()
+        try:
+            metric = PerformanceMetric(
+                scenario_id=scenario_id,
+                start_time=scenario_start_time
+            )
+            db.session.add(metric)
+            db.session.commit()
+        except Exception as db_error:
+            logger.error(f"Database error when creating performance metric: {str(db_error)}")
+            db.session.rollback()
+            # Continue even if metrics creation fails
         
         return {
             "success": True,
