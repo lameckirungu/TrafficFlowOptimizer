@@ -30,11 +30,33 @@ def index():
 @app.route('/scenarios')
 def scenarios_page():
     """Scenarios management page"""
-    scenarios = get_scenario_list()
-    active_scenario = get_active_scenario()
-    return render_template('scenarios.html', 
-                           scenarios=scenarios, 
-                           active_scenario=active_scenario)
+    try:
+        # Get list of scenarios with error handling
+        scenarios_result = get_scenario_list()
+        # Check if the result is a dictionary with an error key
+        if isinstance(scenarios_result, dict) and 'error' in scenarios_result:
+            logger.error(f"Error fetching scenarios: {scenarios_result['error']}")
+            scenarios = []  # Provide empty list as fallback
+        else:
+            scenarios = scenarios_result
+            
+        # Get active scenario with error handling
+        active_scenario = get_active_scenario()
+        # Handle potential error responses
+        if isinstance(active_scenario, dict) and 'error' in active_scenario and not active_scenario.get('active', False):
+            logger.error(f"Error fetching active scenario: {active_scenario.get('error')}")
+            # Still include the active_scenario dict but ensure it has 'active': False
+            active_scenario = {"active": False}
+            
+        return render_template('scenarios.html', 
+                            scenarios=scenarios, 
+                            active_scenario=active_scenario)
+    except Exception as e:
+        logger.error(f"Error rendering scenarios page: {str(e)}")
+        # Provide empty values to avoid template rendering errors
+        return render_template('scenarios.html', 
+                            scenarios=[], 
+                            active_scenario={"active": False})
 
 @app.route('/analytics')
 def analytics_page():
@@ -145,14 +167,41 @@ def list_scenarios():
 @app.route('/api/scenarios/start', methods=['POST'])
 def start_scenario_route():
     """Start a specific scenario"""
-    data = request.get_json()
-    scenario_id = data.get('scenario_id')
-    
-    if not scenario_id:
-        return jsonify({"error": "Missing scenario_id parameter"}), 400
-    
-    result = start_scenario(scenario_id)
-    return jsonify(result)
+    try:
+        # Safely parse JSON with error handling
+        try:
+            data = request.get_json()
+            if data is None:
+                return jsonify({"error": "Invalid JSON data in request"}), 400
+        except Exception as json_error:
+            logger.error(f"JSON parsing error: {str(json_error)}")
+            return jsonify({"error": "Failed to parse JSON data"}), 400
+        
+        # Get and validate scenario_id
+        scenario_id = data.get('scenario_id')
+        if not scenario_id:
+            return jsonify({"error": "Missing scenario_id parameter"}), 400
+        
+        # Try to convert scenario_id to int if it's not already
+        try:
+            if not isinstance(scenario_id, int):
+                scenario_id = int(scenario_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": f"Invalid scenario_id: {scenario_id}. Must be an integer."}), 400
+        
+        # Start the scenario
+        result = start_scenario(scenario_id)
+        
+        # Check for error in result
+        if isinstance(result, dict) and 'error' in result:
+            logger.error(f"Error starting scenario: {result['error']}")
+            return jsonify(result), 400
+            
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in start_scenario_route: {str(e)}")
+        return jsonify({"error": "Server error when starting scenario"}), 500
 
 @app.route('/api/scenarios/end', methods=['POST'])
 def end_scenario_route():
@@ -175,10 +224,28 @@ def active_scenario_route():
 @app.route('/api/scenarios/metrics')
 def scenario_metrics_route():
     """Get metrics for scenarios"""
-    scenario_id = request.args.get('scenario_id', type=int)
-    limit = request.args.get('limit', 5, type=int)
-    data = get_scenario_metrics(scenario_id=scenario_id, limit=limit)
-    return jsonify(data)
+    try:
+        # Get and validate parameters with defaults
+        try:
+            scenario_id = request.args.get('scenario_id', type=int)
+            limit = min(max(request.args.get('limit', 5, type=int), 1), 100)  # Ensure limit is between 1 and 100
+        except (ValueError, TypeError) as param_error:
+            logger.error(f"Invalid parameter in scenario metrics request: {str(param_error)}")
+            return jsonify({"error": "Invalid request parameters"}), 400
+        
+        # Get metrics data
+        data = get_scenario_metrics(scenario_id=scenario_id, limit=limit)
+        
+        # Check for error response
+        if isinstance(data, dict) and 'error' in data:
+            logger.error(f"Error getting scenario metrics: {data['error']}")
+            return jsonify(data), 400
+            
+        return jsonify(data)
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in scenario_metrics_route: {str(e)}")
+        return jsonify({"error": "Server error when retrieving scenario metrics"}), 500
 
 # Socket.IO events
 @socketio.on('connect')

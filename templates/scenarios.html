@@ -290,6 +290,25 @@
         // Event listener for confirming scenario run
         document.getElementById('confirm-run-scenario').addEventListener('click', function() {
             const scenarioId = document.getElementById('run-scenario-id').value;
+            const runButton = this;
+            
+            // Disable button and show loading state
+            runButton.disabled = true;
+            runButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Starting...';
+            
+            // Validate the scenario ID
+            let parsedId;
+            try {
+                parsedId = parseInt(scenarioId);
+                if (isNaN(parsedId)) {
+                    throw new Error("Invalid scenario ID");
+                }
+            } catch (error) {
+                alert('Invalid scenario ID. Please try again.');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('runScenarioModal'));
+                if (modal) modal.hide();
+                return;
+            }
             
             fetch('/api/scenarios/start', {
                 method: 'POST',
@@ -297,19 +316,37 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    scenario_id: parseInt(scenarioId)
+                    scenario_id: parsedId
                 }),
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    // Handle HTTP error responses (4xx, 5xx)
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.error || `HTTP error ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('runScenarioModal'));
-                modal.hide();
+                if (modal) modal.hide();
                 
                 if (data.success) {
                     window.location.reload();
                 } else {
                     alert('Failed to start scenario: ' + (data.error || 'Unknown error'));
                 }
+            })
+            .catch(error => {
+                console.error('Scenario start error:', error);
+                alert('Error starting scenario: ' + error.message);
+            })
+            .finally(() => {
+                // Reset button state regardless of outcome
+                runButton.disabled = false;
+                runButton.innerHTML = '<i data-feather="play"></i> Run Scenario';
+                feather.replace(); // Re-initialize icons
             });
         });
         
@@ -335,15 +372,39 @@
     
     function loadScenarios() {
         fetch('/api/scenarios/list')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                // Check if data is an array (valid scenarios list)
+                if (!Array.isArray(data)) {
+                    // Handle case where the response is an error object
+                    if (data && data.error) {
+                        throw new Error(data.error);
+                    } else {
+                        throw new Error('Invalid data format received from server');
+                    }
+                }
+                
                 scenariosData = data;
                 renderScenarios(data);
             })
             .catch(error => {
                 console.error('Error loading scenarios:', error);
                 document.getElementById('scenarios-container').innerHTML = 
-                    '<div class="alert alert-danger">Failed to load scenarios</div>';
+                    `<div class="alert alert-danger">
+                        <i data-feather="alert-triangle"></i>
+                        Failed to load scenarios: ${error.message || 'Unknown error'}
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-light" onclick="loadScenarios()">
+                                <i data-feather="refresh-cw"></i> Retry
+                            </button>
+                        </div>
+                    </div>`;
+                feather.replace();
             });
     }
     
