@@ -9,8 +9,8 @@ let showPredictionsOnMap = false;
  * @param {Array} intersections - List of intersections
  */
 function initializeTrafficMap(intersections) {
-    // Create map
-    trafficMap = L.map('traffic-map').setView([40.7128, -74.0060], 14);
+    // Create map centered on Nairobi, Kenya
+    trafficMap = L.map('traffic-map').setView([-1.2864, 36.8172], 12);
     
     // Add dark-themed tile layer
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {

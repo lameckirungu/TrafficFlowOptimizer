@@ -60,36 +60,36 @@ TRAFFIC_PATTERNS = {
     }
 }
 
-# Default intersection data for initialization
+# Default intersection data for initialization (Nairobi, Kenya)
 DEFAULT_INTERSECTIONS = [
     {
-        "name": "Main & Broadway",
-        "location_lat": 40.7128,
-        "location_lng": -74.0060,
+        "name": "Uhuru Highway & Kenyatta Avenue",
+        "location_lat": -1.2864,
+        "location_lng": 36.8172,
         "num_roads": 4
     },
     {
-        "name": "Central & Park",
-        "location_lat": 40.7150,
-        "location_lng": -74.0048,
+        "name": "Moi Avenue & Tom Mboya Street",
+        "location_lat": -1.2841,
+        "location_lng": 36.8250,
         "num_roads": 4
     },
     {
-        "name": "Liberty & Commerce",
-        "location_lat": 40.7112,
-        "location_lng": -74.0090,
+        "name": "Haile Selassie Avenue & Moi Avenue",
+        "location_lat": -1.2901,
+        "location_lng": 36.8236,
         "num_roads": 3
     },
     {
-        "name": "Jefferson & Madison",
-        "location_lat": 40.7200,
-        "location_lng": -74.0070,
+        "name": "University Way & Koinange Street",
+        "location_lat": -1.2805,
+        "location_lng": 36.8173,
         "num_roads": 4
     },
     {
-        "name": "Oak & Maple",
-        "location_lat": 40.7180,
-        "location_lng": -74.0100,
+        "name": "Ngong Road & Mbagathi Way",
+        "location_lat": -1.3020,
+        "location_lng": 36.8060,
         "num_roads": 4
     }
 ]
