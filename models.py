@@ -56,9 +56,11 @@ class TrafficData(db.Model):
     direction = db.Column(db.String(20), nullable=False)  # N, S, E, W, NE, etc.
     
     def to_dict(self):
+        # Ensure timestamp is not None before calling isoformat()
+        timestamp_str = self.timestamp.isoformat() if self.timestamp else datetime.utcnow().isoformat()
         return {
             'id': self.id,
-            'timestamp': self.timestamp.isoformat(),
+            'timestamp': timestamp_str,
             'vehicle_count': self.vehicle_count,
             'average_speed': self.average_speed,
             'queue_length': self.queue_length,

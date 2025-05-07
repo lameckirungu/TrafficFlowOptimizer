@@ -96,6 +96,8 @@ DEFAULT_INTERSECTIONS = [
 
 def init_simulation(app, socketio, scheduler):
     """Initialize the traffic simulation system"""
+    global simulation_running
+    
     with app.app_context():
         # Initialize intersections if none exist
         if Intersection.query.count() == 0:
@@ -107,15 +109,24 @@ def init_simulation(app, socketio, scheduler):
             _create_default_signals()
             logger.info("Created default traffic signals")
         
-        # Schedule the simulation update task
+        # Define a job that wraps the simulation function with the application context
+        def update_simulation_with_app_context():
+            with app.app_context():
+                update_simulation()
+        
+        # Schedule the simulation update task with application context
         scheduler.add_job(
-            update_simulation,
+            update_simulation_with_app_context,
             'interval',
             seconds=1,
             id='simulation_update',
             replace_existing=True
         )
-        logger.info("Scheduled simulation update job")
+        
+        # Start the simulation automatically
+        simulation_running = True
+        logger.info("Simulation started automatically")
+        logger.info("Scheduled simulation update job with application context")
 
 def _create_default_intersections():
     """Create default intersections for the simulation"""
