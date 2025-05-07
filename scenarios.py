@@ -14,11 +14,11 @@ active_scenario_id = None
 scenario_start_time = None
 scenario_metrics = {}
 
-# Predefined scenario configurations
+# Predefined scenario configurations for Nairobi, Kenya
 DEFAULT_SCENARIOS = [
     {
         "name": "Normal Traffic Flow",
-        "description": "Typical weekday traffic with moderate congestion during peak hours",
+        "description": "Typical weekday traffic in Nairobi with moderate congestion during business hours",
         "duration": 180,  # 3 minutes for demo
         "config": json.dumps({
             "pattern": "normal",
@@ -28,7 +28,7 @@ DEFAULT_SCENARIOS = [
     },
     {
         "name": "Morning Rush Hour",
-        "description": "Heavy traffic flowing into the city center during morning peak",
+        "description": "Heavy traffic flowing into Nairobi Central Business District during morning peak hours",
         "duration": 180,
         "config": json.dumps({
             "pattern": "morning_rush",
@@ -38,7 +38,7 @@ DEFAULT_SCENARIOS = [
     },
     {
         "name": "Evening Rush Hour",
-        "description": "Heavy traffic flowing out of the city center during evening peak",
+        "description": "Heavy traffic on Uhuru Highway and Moi Avenue during evening exodus from Nairobi CBD",
         "duration": 180,
         "config": json.dumps({
             "pattern": "evening_rush",
@@ -48,7 +48,7 @@ DEFAULT_SCENARIOS = [
     },
     {
         "name": "Weekend Shopping",
-        "description": "Moderate traffic around shopping areas during weekend",
+        "description": "Moderate traffic around Westlands and Ngong Road shopping areas during weekend",
         "duration": 180,
         "config": json.dumps({
             "pattern": "weekend",
@@ -58,7 +58,7 @@ DEFAULT_SCENARIOS = [
     },
     {
         "name": "Emergency Response",
-        "description": "Test emergency vehicle priority through congested intersections",
+        "description": "Test emergency vehicle priority through congested Nairobi intersections during rush hour",
         "duration": 180,
         "config": json.dumps({
             "pattern": "morning_rush",

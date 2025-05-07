@@ -16,47 +16,47 @@ simulation_running = False
 simulation_speed = 1.0  # Multiplier for simulation speed
 emergency_vehicles = []
 
-# Base traffic patterns
+# Kenya traffic patterns based on Nairobi traffic behavior
 TRAFFIC_PATTERNS = {
     "morning_rush": {
-        "peak_directions": ["S", "E"],  # To city center
-        "base_vehicle_count": 40,
+        "peak_directions": ["S", "E"],  # Towards Nairobi CBD
+        "base_vehicle_count": 45,  # Higher due to Nairobi's dense morning traffic
         "variation": 15,
-        "avg_speed_range": (20, 60),
-        "queue_multiplier": 0.7,
-        "wait_time_base": 30
+        "avg_speed_range": (15, 50),  # Lower speeds during rush hour
+        "queue_multiplier": 0.8,  # Longer queues typical in Nairobi
+        "wait_time_base": 35  # Increased wait times
     },
     "evening_rush": {
-        "peak_directions": ["N", "W"],  # From city center
-        "base_vehicle_count": 35,
+        "peak_directions": ["N", "W"],  # From Nairobi CBD towards suburbs
+        "base_vehicle_count": 40,
         "variation": 20,
-        "avg_speed_range": (15, 50),
-        "queue_multiplier": 0.8,
-        "wait_time_base": 40
+        "avg_speed_range": (10, 45),  # Evening traffic is slower in Nairobi
+        "queue_multiplier": 0.9,
+        "wait_time_base": 45
     },
     "normal": {
         "peak_directions": [],
-        "base_vehicle_count": 15,
-        "variation": 8,
-        "avg_speed_range": (30, 70),
-        "queue_multiplier": 0.4,
-        "wait_time_base": 15
-    },
-    "night": {
-        "peak_directions": [],
-        "base_vehicle_count": 5,
-        "variation": 3,
-        "avg_speed_range": (40, 90),
-        "queue_multiplier": 0.2,
-        "wait_time_base": 5
-    },
-    "weekend": {
-        "peak_directions": ["E", "W"],  # Shopping areas
-        "base_vehicle_count": 25,
-        "variation": 12,
+        "base_vehicle_count": 20,  # Regular traffic still substantial in Nairobi
+        "variation": 10,
         "avg_speed_range": (25, 65),
         "queue_multiplier": 0.5,
         "wait_time_base": 20
+    },
+    "night": {
+        "peak_directions": [],
+        "base_vehicle_count": 8,  # Night traffic in Nairobi
+        "variation": 4,
+        "avg_speed_range": (35, 80),
+        "queue_multiplier": 0.3,
+        "wait_time_base": 10
+    },
+    "weekend": {
+        "peak_directions": ["E", "W"],  # Towards Westlands and shopping malls
+        "base_vehicle_count": 30,  # Weekend shopping traffic is substantial
+        "variation": 15,
+        "avg_speed_range": (20, 60),
+        "queue_multiplier": 0.6,
+        "wait_time_base": 25
     }
 }
 
