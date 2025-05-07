@@ -1,0 +1,740 @@
+{% extends 'base.html' %}
+
+{% block title %}Scenarios - Smart Traffic Management System{% endblock %}
+
+{% block head %}
+<style>
+    .scenario-card {
+        cursor: pointer;
+        transition: all 0.2s;
+        height: 100%;
+    }
+    
+    .scenario-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .scenario-card.active {
+        border: 2px solid var(--bs-primary);
+    }
+    
+    .metrics-chart {
+        height: 300px;
+    }
+    
+    .progress-indicator {
+        position: relative;
+        height: 5px;
+        background-color: var(--bs-dark);
+        overflow: hidden;
+        border-radius: 0 0 4px 4px;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        width: 0;
+        background-color: var(--bs-primary);
+        transition: width 0.5s linear;
+    }
+    
+    .scenario-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    
+    .comparison-card {
+        height: 100%;
+    }
+    
+    .active-scenario-indicator {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 5px 10px;
+        background-color: var(--bs-primary);
+        color: white;
+        border-radius: 0 4px 0 4px;
+        font-size: 0.8rem;
+        z-index: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="play-circle"></i> Traffic Scenarios
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if active_scenario and active_scenario.active %}
+                <div class="alert alert-info">
+                    <strong>
+                        <i data-feather="play"></i> Running: {{ active_scenario.name }}
+                    </strong>
+                    <div class="progress mt-2" style="height: 5px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ active_scenario.progress }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small>Elapsed: {{ active_scenario.elapsed }}s</small>
+                        <small>Remaining: {{ active_scenario.remaining }}s</small>
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-danger" id="stop-active-scenario">
+                            <i data-feather="square"></i> Stop Scenario
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div id="scenarios-container" class="scenario-grid">
+                    <!-- Scenarios will be loaded here -->
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-secondary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading scenarios...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="info"></i> Scenario Details
+                </h5>
+            </div>
+            <div class="card-body" id="scenario-details">
+                <div class="text-center py-5">
+                    <p class="text-muted">Select a scenario to see details</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="activity"></i> Current Metrics
+                </h5>
+            </div>
+            <div class="card-body" id="current-metrics">
+                {% if active_scenario and active_scenario.active and active_scenario.metrics %}
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h3>{{ active_scenario.metrics.avg_wait_time }}s</h3>
+                                <p class="text-muted mb-0">Avg Wait Time</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h3>{{ active_scenario.metrics.total_vehicles }}</h3>
+                                <p class="text-muted mb-0">Total Vehicles</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h3>{{ active_scenario.metrics.congested_intersections }}/{{ active_scenario.metrics.total_intersections }}</h3>
+                                <p class="text-muted mb-0">Congested</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card bg-dark">
+                            <div class="card-body">
+                                <h3 id="efficiency-score">N/A</h3>
+                                <p class="text-muted mb-0">Efficiency</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <p class="text-muted">No active scenario</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="bar-chart-2"></i> Scenario Performance Comparison
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="metrics-chart">
+                    <canvas id="comparison-chart"></canvas>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-4">
+                        <div class="card comparison-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Average Wait Time</h5>
+                                <p class="text-muted">Compares the average time vehicles spend waiting at intersections</p>
+                                <div class="text-center mt-3">
+                                    <h3 id="best-wait-time">N/A</h3>
+                                    <p class="text-success mb-0">Best Performing Scenario</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card comparison-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Throughput</h5>
+                                <p class="text-muted">Total number of vehicles processed during the scenario</p>
+                                <div class="text-center mt-3">
+                                    <h3 id="best-throughput">N/A</h3>
+                                    <p class="text-success mb-0">Best Performing Scenario</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card comparison-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Congestion Duration</h5>
+                                <p class="text-muted">Time spent in congested state across all intersections</p>
+                                <div class="text-center mt-3">
+                                    <h3 id="best-congestion">N/A</h3>
+                                    <p class="text-success mb-0">Best Performing Scenario</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Run Scenario Modal -->
+<div class="modal fade" id="runScenarioModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Run Scenario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="run-scenario-description"></p>
+                
+                <div class="alert alert-info">
+                    <i data-feather="info"></i> This will run for 
+                    <strong id="scenario-duration">3 minutes</strong> and collect performance metrics.
+                </div>
+                
+                <input type="hidden" id="run-scenario-id">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-run-scenario">
+                    <i data-feather="play"></i> Run Scenario
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Globals
+    let scenariosData = [];
+    let scenarioMetricsData = [];
+    let comparisonChart = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize
+        initializeSocketConnection();
+        loadScenarios();
+        loadScenarioMetrics();
+        
+        // Event listener for stopping active scenario
+        document.getElementById('stop-active-scenario')?.addEventListener('click', function() {
+            fetch('/api/scenarios/end', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                }
+            });
+        });
+        
+        // Event listener for confirming scenario run
+        document.getElementById('confirm-run-scenario').addEventListener('click', function() {
+            const scenarioId = document.getElementById('run-scenario-id').value;
+            
+            fetch('/api/scenarios/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    scenario_id: parseInt(scenarioId)
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('runScenarioModal'));
+                modal.hide();
+                
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to start scenario: ' + (data.error || 'Unknown error'));
+                }
+            });
+        });
+        
+        // Setup socket listeners
+        socket.on('scenario_progress', function(data) {
+            updateActiveScenario(data);
+        });
+        
+        socket.on('scenario_completed', function(data) {
+            // Reload the page to show updated metrics
+            window.location.reload();
+        });
+        
+        // Check for active scenario
+        fetch('/api/scenarios/active')
+            .then(response => response.json())
+            .then(data => {
+                if (data.active) {
+                    updateActiveScenario(data);
+                }
+            });
+    });
+    
+    function loadScenarios() {
+        fetch('/api/scenarios/list')
+            .then(response => response.json())
+            .then(data => {
+                scenariosData = data;
+                renderScenarios(data);
+            })
+            .catch(error => {
+                console.error('Error loading scenarios:', error);
+                document.getElementById('scenarios-container').innerHTML = 
+                    '<div class="alert alert-danger">Failed to load scenarios</div>';
+            });
+    }
+    
+    function loadScenarioMetrics() {
+        fetch('/api/scenarios/metrics')
+            .then(response => response.json())
+            .then(data => {
+                scenarioMetricsData = data;
+                renderComparisonChart(data);
+                updateBestPerformers(data);
+            })
+            .catch(error => {
+                console.error('Error loading scenario metrics:', error);
+            });
+    }
+    
+    function renderScenarios(scenarios) {
+        const container = document.getElementById('scenarios-container');
+        
+        if (!scenarios || scenarios.length === 0) {
+            container.innerHTML = '<div class="alert alert-info">No scenarios available</div>';
+            return;
+        }
+        
+        let html = '';
+        scenarios.forEach(scenario => {
+            const isActive = {% if active_scenario and active_scenario.active %}
+                {{ active_scenario.scenario_id }} === scenario.id
+            {% else %}
+                false
+            {% endif %};
+            
+            html += `
+            <div class="card scenario-card ${isActive ? 'active' : ''}" data-id="${scenario.id}">
+                ${isActive ? '<div class="active-scenario-indicator">Active</div>' : ''}
+                <div class="card-body">
+                    <h5 class="card-title">${scenario.name}</h5>
+                    <p class="card-text text-muted">${scenario.description}</p>
+                    <p><small class="text-muted">Duration: ${scenario.duration} seconds</small></p>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <button class="btn btn-sm btn-primary run-scenario-btn" data-id="${scenario.id}">
+                        <i data-feather="play"></i> Run Scenario
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary view-details-btn" data-id="${scenario.id}">
+                        <i data-feather="info"></i> Details
+                    </button>
+                </div>
+                ${isActive ? `
+                <div class="progress-indicator">
+                    <div class="progress-bar" style="width: ${{% if active_scenario and active_scenario.active %}{{ active_scenario.progress }}{% else %}0{% endif %}%"></div>
+                </div>` : ''}
+            </div>`;
+        });
+        
+        container.innerHTML = html;
+        
+        // Initialize Feather icons for the dynamically added content
+        feather.replace();
+        
+        // Add event listeners
+        document.querySelectorAll('.run-scenario-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const scenarioId = this.getAttribute('data-id');
+                const scenario = scenarios.find(s => s.id == scenarioId);
+                
+                // Populate and show modal
+                document.getElementById('run-scenario-id').value = scenarioId;
+                document.getElementById('run-scenario-description').textContent = scenario.description;
+                document.getElementById('scenario-duration').textContent = 
+                    `${Math.floor(scenario.duration / 60)} minutes ${scenario.duration % 60} seconds`;
+                
+                const modal = new bootstrap.Modal(document.getElementById('runScenarioModal'));
+                modal.show();
+            });
+        });
+        
+        document.querySelectorAll('.view-details-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const scenarioId = this.getAttribute('data-id');
+                showScenarioDetails(scenarioId);
+            });
+        });
+        
+        document.querySelectorAll('.scenario-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const scenarioId = this.getAttribute('data-id');
+                showScenarioDetails(scenarioId);
+            });
+        });
+    }
+    
+    function showScenarioDetails(scenarioId) {
+        const scenario = scenariosData.find(s => s.id == scenarioId);
+        if (!scenario) return;
+        
+        const config = JSON.parse(scenario.config);
+        const detailsContainer = document.getElementById('scenario-details');
+        
+        let html = `
+        <h4>${scenario.name}</h4>
+        <p>${scenario.description}</p>
+        
+        <div class="mt-3">
+            <h6>Configuration</h6>
+            <ul class="list-group">
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>Traffic Pattern</span>
+                    <span class="badge bg-info">${config.pattern || 'Normal'}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>Duration</span>
+                    <span>${Math.floor(scenario.duration / 60)}:${(scenario.duration % 60).toString().padStart(2, '0')}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>Simulation Speed</span>
+                    <span>${config.simulation_speed || 1.0}x</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>Emergency Vehicles</span>
+                    <span>${config.emergency_vehicles ? 'Yes' : 'No'}</span>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="mt-4">
+            <button class="btn btn-primary run-scenario-btn w-100" data-id="${scenario.id}">
+                <i data-feather="play"></i> Run This Scenario
+            </button>
+        </div>`;
+        
+        detailsContainer.innerHTML = html;
+        feather.replace();
+        
+        // Add event listener to the run button
+        detailsContainer.querySelector('.run-scenario-btn').addEventListener('click', function() {
+            const scenarioId = this.getAttribute('data-id');
+            const scenario = scenariosData.find(s => s.id == scenarioId);
+            
+            // Populate and show modal
+            document.getElementById('run-scenario-id').value = scenarioId;
+            document.getElementById('run-scenario-description').textContent = scenario.description;
+            document.getElementById('scenario-duration').textContent = 
+                `${Math.floor(scenario.duration / 60)} minutes ${scenario.duration % 60} seconds`;
+            
+            const modal = new bootstrap.Modal(document.getElementById('runScenarioModal'));
+            modal.show();
+        });
+    }
+    
+    function renderComparisonChart(metrics) {
+        if (!metrics || metrics.length === 0) {
+            document.getElementById('comparison-chart').parentElement.innerHTML = 
+                '<div class="alert alert-info text-center">No metrics data available yet. Run scenarios to collect data.</div>';
+            return;
+        }
+        
+        // Group metrics by scenario ID
+        const scenarioMetrics = {};
+        metrics.forEach(metric => {
+            if (!scenarioMetrics[metric.scenario_id]) {
+                scenarioMetrics[metric.scenario_id] = [];
+            }
+            scenarioMetrics[metric.scenario_id].push(metric);
+        });
+        
+        // Calculate averages for each scenario
+        const averages = Object.keys(scenarioMetrics).map(scenarioId => {
+            const scenarioData = scenarioMetrics[scenarioId];
+            const scenario = scenariosData.find(s => s.id == scenarioId);
+            
+            const avgWaitTime = scenarioData.reduce((sum, m) => sum + (m.avg_wait_time || 0), 0) / scenarioData.length;
+            const avgThroughput = scenarioData.reduce((sum, m) => sum + (m.throughput || 0), 0) / scenarioData.length;
+            const avgCongestion = scenarioData.reduce((sum, m) => sum + (m.congestion_duration || 0), 0) / scenarioData.length;
+            
+            return {
+                scenarioId: parseInt(scenarioId),
+                scenarioName: scenario ? scenario.name : `Scenario ${scenarioId}`,
+                avgWaitTime: avgWaitTime,
+                avgThroughput: avgThroughput,
+                avgCongestion: avgCongestion
+            };
+        });
+        
+        // Sort by scenario ID
+        averages.sort((a, b) => a.scenarioId - b.scenarioId);
+        
+        // Prepare chart data
+        const labels = averages.map(a => a.scenarioName);
+        const waitTimeData = averages.map(a => a.avgWaitTime);
+        const throughputData = averages.map(a => a.avgThroughput);
+        const congestionData = averages.map(a => a.avgCongestion);
+        
+        // Get the chart context
+        const ctx = document.getElementById('comparison-chart').getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (comparisonChart) {
+            comparisonChart.destroy();
+        }
+        
+        // Create new chart
+        comparisonChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Avg. Wait Time (s)',
+                        data: waitTimeData,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Throughput (vehicles)',
+                        data: throughputData,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Value'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function updateBestPerformers(metrics) {
+        if (!metrics || metrics.length === 0) {
+            document.getElementById('best-wait-time').textContent = 'N/A';
+            document.getElementById('best-throughput').textContent = 'N/A';
+            document.getElementById('best-congestion').textContent = 'N/A';
+            return;
+        }
+        
+        // Group by scenario
+        const scenarioMetrics = {};
+        metrics.forEach(metric => {
+            if (!scenarioMetrics[metric.scenario_id]) {
+                scenarioMetrics[metric.scenario_id] = [];
+            }
+            scenarioMetrics[metric.scenario_id].push(metric);
+        });
+        
+        // Find best performers
+        let bestWaitTime = { value: Infinity, scenarioId: null };
+        let bestThroughput = { value: -1, scenarioId: null };
+        let bestCongestion = { value: Infinity, scenarioId: null };
+        
+        Object.keys(scenarioMetrics).forEach(scenarioId => {
+            const scenarioData = scenarioMetrics[scenarioId];
+            
+            // Calculate averages
+            const avgWaitTime = scenarioData.reduce((sum, m) => sum + (m.avg_wait_time || 0), 0) / scenarioData.length;
+            const avgThroughput = scenarioData.reduce((sum, m) => sum + (m.throughput || 0), 0) / scenarioData.length;
+            const avgCongestion = scenarioData.reduce((sum, m) => sum + (m.congestion_duration || 0), 0) / scenarioData.length;
+            
+            // Check if this is a new best
+            if (avgWaitTime < bestWaitTime.value) {
+                bestWaitTime = { value: avgWaitTime, scenarioId: parseInt(scenarioId) };
+            }
+            
+            if (avgThroughput > bestThroughput.value) {
+                bestThroughput = { value: avgThroughput, scenarioId: parseInt(scenarioId) };
+            }
+            
+            if (avgCongestion < bestCongestion.value) {
+                bestCongestion = { value: avgCongestion, scenarioId: parseInt(scenarioId) };
+            }
+        });
+        
+        // Get scenario names
+        const getScenarioName = (id) => {
+            const scenario = scenariosData.find(s => s.id === id);
+            return scenario ? scenario.name : `Scenario ${id}`;
+        };
+        
+        // Update UI
+        if (bestWaitTime.scenarioId) {
+            document.getElementById('best-wait-time').textContent = 
+                `${bestWaitTime.value.toFixed(1)}s (${getScenarioName(bestWaitTime.scenarioId)})`;
+        }
+        
+        if (bestThroughput.scenarioId) {
+            document.getElementById('best-throughput').textContent = 
+                `${bestThroughput.value.toFixed(0)} (${getScenarioName(bestThroughput.scenarioId)})`;
+        }
+        
+        if (bestCongestion.scenarioId) {
+            document.getElementById('best-congestion').textContent = 
+                `${bestCongestion.value.toFixed(1)}s (${getScenarioName(bestCongestion.scenarioId)})`;
+        }
+    }
+    
+    function updateActiveScenario(data) {
+        if (!data) return;
+        
+        // Update progress bar on the active scenario card
+        const activeCard = document.querySelector(`.scenario-card[data-id="${data.scenario_id}"]`);
+        if (activeCard) {
+            const progressBar = activeCard.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.width = `${data.progress}%`;
+            }
+        }
+        
+        // Update current metrics
+        const metricsContainer = document.getElementById('current-metrics');
+        if (data.metrics) {
+            metricsContainer.innerHTML = `
+            <div class="row text-center">
+                <div class="col-6 mb-3">
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <h3>${data.metrics.avg_wait_time.toFixed(1)}s</h3>
+                            <p class="text-muted mb-0">Avg Wait Time</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 mb-3">
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <h3>${data.metrics.total_vehicles}</h3>
+                            <p class="text-muted mb-0">Total Vehicles</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <h3>${data.metrics.congested_intersections}/${data.metrics.total_intersections}</h3>
+                            <p class="text-muted mb-0">Congested</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <h3 id="efficiency-score">${calculateEfficiency(data.metrics)}</h3>
+                            <p class="text-muted mb-0">Efficiency</p>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        
+        // Update the active scenario alert if present
+        const activeAlert = document.querySelector('.alert-info');
+        if (activeAlert) {
+            const progressBar = activeAlert.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.width = `${data.progress}%`;
+            }
+            
+            const elapsed = activeAlert.querySelector('small:first-of-type');
+            if (elapsed) {
+                elapsed.textContent = `Elapsed: ${data.elapsed}s`;
+            }
+            
+            const remaining = activeAlert.querySelector('small:last-of-type');
+            if (remaining) {
+                remaining.textContent = `Remaining: ${data.remaining}s`;
+            }
+        }
+    }
+    
+    function calculateEfficiency(metrics) {
+        if (!metrics) return 'N/A';
+        
+        // Simple efficiency score based on wait time and congestion
+        // Lower wait time and fewer congested intersections = higher efficiency
+        const waitTimeFactor = Math.max(0, 1 - (metrics.avg_wait_time / 100));
+        const congestionFactor = Math.max(0, 1 - (metrics.congested_intersections / Math.max(1, metrics.total_intersections)));
+        
+        const efficiency = Math.round((waitTimeFactor * 0.6 + congestionFactor * 0.4) * 100);
+        
+        return `${efficiency}%`;
+    }
+</script>
+{% endblock %}

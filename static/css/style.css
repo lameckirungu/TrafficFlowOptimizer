@@ -1,0 +1,177 @@
+/* Smart Traffic Management System - Custom Styles */
+
+/* General styles */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.footer {
+    margin-top: auto;
+}
+
+/* Traffic map */
+.traffic-map {
+    height: 500px;
+    border-radius: 0.25rem;
+}
+
+.leaflet-popup-content {
+    margin: 10px;
+}
+
+.intersection-popup h6, 
+.direction-popup h6, 
+.prediction-popup h6 {
+    margin-bottom: 10px;
+}
+
+/* Traffic signals */
+.signals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.signal-card {
+    height: 100%;
+}
+
+.signal-light {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin: 0 5px;
+    display: inline-block;
+}
+
+.signal-red {
+    background-color: var(--bs-danger);
+    box-shadow: 0 0 10px var(--bs-danger);
+}
+
+.signal-yellow {
+    background-color: var(--bs-warning);
+    box-shadow: 0 0 10px var(--bs-warning);
+}
+
+.signal-green {
+    background-color: var(--bs-success);
+    box-shadow: 0 0 10px var(--bs-success);
+}
+
+.signal-inactive {
+    background-color: var(--bs-dark);
+}
+
+/* Metrics cards */
+.metrics-card {
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.metrics-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Charts */
+.traffic-chart-container, 
+.metrics-chart {
+    height: 250px;
+    position: relative;
+}
+
+/* Scenario cards */
+.scenario-card {
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 100%;
+}
+
+.scenario-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.scenario-card.active {
+    border: 2px solid var(--bs-primary);
+}
+
+.progress-indicator {
+    position: relative;
+    height: 5px;
+    background-color: var(--bs-dark);
+    overflow: hidden;
+    border-radius: 0 0 4px 4px;
+}
+
+.active-scenario-indicator {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 5px 10px;
+    background-color: var(--bs-primary);
+    color: white;
+    border-radius: 0 4px 0 4px;
+    font-size: 0.8rem;
+    z-index: 1;
+}
+
+/* Animations */
+.emergency-alert {
+    animation: flash 1s infinite;
+}
+
+@keyframes flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Dashboard panels */
+.dashboard-panel {
+    height: 100%;
+    transition: all 0.2s ease;
+}
+
+.dashboard-panel:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Analytics page */
+.metric-tile {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+}
+
+.metric-tile:hover {
+    transform: scale(1.05);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: var(--bs-gray-600);
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    .traffic-map {
+        height: 300px;
+    }
+    
+    .signals-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .scenario-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,342 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Smart Traffic Management System{% endblock %}
+
+{% block head %}
+<style>
+    .traffic-map {
+        height: 500px;
+        background-color: var(--bs-dark);
+        border-radius: 5px;
+    }
+    
+    .signals-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 15px;
+    }
+    
+    .signal-card {
+        height: 100%;
+    }
+    
+    .signal-light {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        margin: 0 5px;
+        display: inline-block;
+    }
+    
+    .signal-red {
+        background-color: #dc3545;
+    }
+    
+    .signal-yellow {
+        background-color: #ffc107;
+    }
+    
+    .signal-green {
+        background-color: #28a745;
+    }
+    
+    .signal-inactive {
+        background-color: #343a40;
+    }
+    
+    .metrics-card {
+        height: 100%;
+    }
+    
+    .traffic-chart-container {
+        height: 250px;
+    }
+    
+    .emergency-alert {
+        animation: flash 1s infinite;
+    }
+    
+    @keyframes flash {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i data-feather="map-pin"></i> Traffic Map
+                </h5>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="show-predictions-switch">
+                    <label class="form-check-label" for="show-predictions-switch">Show Predictions</label>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="traffic-map" class="traffic-map"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="trending-up"></i> Traffic Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="traffic-overview">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="card bg-dark">
+                                <div class="card-body text-center">
+                                    <h3 id="total-vehicles">0</h3>
+                                    <p class="text-muted mb-0">Total Vehicles</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-dark">
+                                <div class="card-body text-center">
+                                    <h3 id="avg-wait-time">0s</h3>
+                                    <p class="text-muted mb-0">Avg Wait Time</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="card bg-dark">
+                                <div class="card-body text-center">
+                                    <h3 id="congestion-level">Low</h3>
+                                    <p class="text-muted mb-0">Congestion</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-dark">
+                                <div class="card-body text-center">
+                                    <h3 id="emergency-count">0</h3>
+                                    <p class="text-muted mb-0">Emergency</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Active scenario info -->
+                <div id="active-scenario-info" class="mt-3">
+                    {% if active_scenario and active_scenario.active %}
+                        <div class="card bg-info bg-opacity-25 mb-3">
+                            <div class="card-body">
+                                <h5>{{ active_scenario.name }}</h5>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ active_scenario.progress }}%"></div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <small>Elapsed: {{ active_scenario.elapsed }}s</small>
+                                    <small>Remaining: {{ active_scenario.remaining }}s</small>
+                                </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-outline-danger" id="end-scenario-btn">
+                                        End Scenario
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-center text-muted">No active scenario</p>
+                        <p class="text-center">
+                            <a href="/scenarios" class="btn btn-sm btn-outline-primary">Run Scenario</a>
+                        </p>
+                    {% endif %}
+                </div>
+                
+                <!-- Emergency vehicle control -->
+                <div class="mt-3">
+                    <h6>Emergency Vehicle Simulation</h6>
+                    <div class="input-group mb-2">
+                        <select class="form-select" id="emergency-intersection">
+                            <option value="">Select Intersection</option>
+                            {% for intersection in intersections %}
+                                <option value="{{ intersection.id }}">{{ intersection.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="input-group mb-2">
+                        <select class="form-select" id="emergency-direction">
+                            <option value="N">North</option>
+                            <option value="S">South</option>
+                            <option value="E">East</option>
+                            <option value="W">West</option>
+                        </select>
+                        <button class="btn btn-outline-danger" id="add-emergency-btn">
+                            <i data-feather="alert-triangle"></i> Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i data-feather="activity"></i> Traffic Trends
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary active" data-metric="vehicle_count">Vehicle Count</button>
+                    <button class="btn btn-outline-secondary" data-metric="wait_time">Wait Time</button>
+                    <button class="btn btn-outline-secondary" data-metric="queue_length">Queue Length</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="traffic-chart-container">
+                    <canvas id="traffic-trend-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i data-feather="traffic-light"></i> Traffic Signals
+                </h5>
+                <div>
+                    <select class="form-select form-select-sm d-inline-block w-auto" id="intersection-filter">
+                        <option value="all">All Intersections</option>
+                        {% for intersection in intersections %}
+                            <option value="{{ intersection.id }}">{{ intersection.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="signals-container" class="signals-grid">
+                    <!-- Signals will be loaded here -->
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-secondary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading signals...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Emergency Vehicle Alert Modal -->
+<div class="modal fade" id="emergencyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i data-feather="alert-triangle"></i> Emergency Vehicle Alert
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>An emergency vehicle has been detected at:</p>
+                <h4 id="emergency-intersection-name"></h4>
+                <p>Direction: <span id="emergency-direction-text"></span></p>
+                <p class="text-muted">Traffic signals are being adjusted to prioritize this route.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/visualization.js') }}"></script>
+<script src="{{ url_for('static', filename='js/signal_control.js') }}"></script>
+<script>
+    // Execute when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize all components
+        initializeSocketConnection();
+        initializeTrafficMap({{ intersections|tojson }});
+        initializeTrafficTrends();
+        initializeSignalControl();
+        
+        // Setup event listeners
+        document.getElementById('end-scenario-btn')?.addEventListener('click', function() {
+            fetch('/api/scenarios/end', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                }
+            });
+        });
+        
+        document.getElementById('add-emergency-btn').addEventListener('click', function() {
+            const intersectionId = document.getElementById('emergency-intersection').value;
+            const direction = document.getElementById('emergency-direction').value;
+            
+            if (!intersectionId) {
+                alert('Please select an intersection');
+                return;
+            }
+            
+            fetch('/api/simulation/emergency', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    intersection_id: parseInt(intersectionId),
+                    direction: direction
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Emergency vehicle added:', data);
+            });
+        });
+        
+        // Initialize intersection filter
+        document.getElementById('intersection-filter').addEventListener('change', function() {
+            const intersectionId = this.value;
+            if (intersectionId === 'all') {
+                loadSignals();
+            } else {
+                loadSignals(parseInt(intersectionId));
+            }
+        });
+        
+        // Initial loading
+        loadSignals();
+        loadTrafficData();
+        
+        // Data refresh interval
+        setInterval(function() {
+            loadTrafficData();
+        }, 5000);
+    });
+</script>
+{% endblock %}
