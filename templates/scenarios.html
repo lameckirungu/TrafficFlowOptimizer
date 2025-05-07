@@ -410,14 +410,45 @@
     
     function loadScenarioMetrics() {
         fetch('/api/scenarios/metrics')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                // Make sure data is an array before proceeding
+                if (!Array.isArray(data)) {
+                    if (data && data.error) {
+                        throw new Error(data.error);
+                    } else {
+                        throw new Error('Invalid data format received from server');
+                    }
+                }
+                
                 scenarioMetricsData = data;
                 renderComparisonChart(data);
                 updateBestPerformers(data);
             })
             .catch(error => {
                 console.error('Error loading scenario metrics:', error);
+                // Show error message in the metrics area
+                document.getElementById('comparison-chart').parentElement.innerHTML = 
+                    `<div class="alert alert-danger">
+                        <i data-feather="alert-triangle"></i>
+                        Failed to load metrics: ${error.message || 'Unknown error'}
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-light" onclick="loadScenarioMetrics()">
+                                <i data-feather="refresh-cw"></i> Retry
+                            </button>
+                        </div>
+                    </div>`;
+                feather.replace();
+                
+                // Clear best performers
+                document.getElementById('best-wait-time').textContent = 'Error';
+                document.getElementById('best-throughput').textContent = 'Error';
+                document.getElementById('best-congestion').textContent = 'Error';
             });
     }
     
@@ -503,7 +534,17 @@
         const scenario = scenariosData.find(s => s.id == scenarioId);
         if (!scenario) return;
         
-        const config = JSON.parse(scenario.config);
+        // Parse config JSON with error handling
+        let config = {};
+        try {
+            if (scenario.config) {
+                config = JSON.parse(scenario.config);
+            }
+        } catch (error) {
+            console.error(`Error parsing scenario config: ${error.message}`);
+            // Use an empty object as fallback if JSON parsing fails
+        }
+        
         const detailsContainer = document.getElementById('scenario-details');
         
         let html = `

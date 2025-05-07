@@ -161,8 +161,20 @@ def update_signals():
 @app.route('/api/scenarios/list')
 def list_scenarios():
     """Get list of available scenarios"""
-    scenarios = get_scenario_list()
-    return jsonify(scenarios)
+    try:
+        scenarios = get_scenario_list()
+        
+        # Check if the result is a dictionary with an error key (error case)
+        if isinstance(scenarios, dict) and 'error' in scenarios:
+            logger.error(f"Error getting scenarios list: {scenarios['error']}")
+            return jsonify(scenarios), 500
+        
+        # Return the list of scenarios with a 200 status
+        return jsonify(scenarios)
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in list_scenarios: {str(e)}")
+        return jsonify({"error": "Server error when retrieving scenarios list"}), 500
 
 @app.route('/api/scenarios/start', methods=['POST'])
 def start_scenario_route():
@@ -206,20 +218,50 @@ def start_scenario_route():
 @app.route('/api/scenarios/end', methods=['POST'])
 def end_scenario_route():
     """End the current scenario"""
-    result = end_scenario()
-    return jsonify(result)
+    try:
+        result = end_scenario()
+        
+        # Check if result indicates an error
+        if isinstance(result, dict) and 'error' in result:
+            if result['error'] == 'No active scenario':
+                # This is not a server error, just informational
+                return jsonify(result), 404  # Not Found - no active scenario
+            else:
+                logger.error(f"Error ending scenario: {result['error']}")
+                return jsonify(result), 400  # Bad Request - other error
+                
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in end_scenario_route: {str(e)}")
+        return jsonify({"error": "Server error when ending scenario"}), 500
 
 @app.route('/api/scenarios/clear', methods=['POST'])
 def clear_scenario_route():
     """Clear the current scenario state"""
-    result = clear_scenario()
-    return jsonify(result)
+    try:
+        result = clear_scenario()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Unexpected error in clear_scenario_route: {str(e)}")
+        return jsonify({"error": "Server error when clearing scenario state"}), 500
 
 @app.route('/api/scenarios/active')
 def active_scenario_route():
     """Get information about the currently active scenario"""
-    result = get_active_scenario()
-    return jsonify(result)
+    try:
+        result = get_active_scenario()
+        
+        # Check for error but still return a 200 status since no scenario is a valid state
+        if isinstance(result, dict) and 'error' in result and 'active' not in result:
+            logger.error(f"Error getting active scenario: {result['error']}")
+            return jsonify({"active": False, "error": result['error']}), 200
+            
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in active_scenario_route: {str(e)}")
+        return jsonify({"active": False, "error": "Server error when retrieving active scenario"}), 500
 
 @app.route('/api/scenarios/metrics')
 def scenario_metrics_route():
